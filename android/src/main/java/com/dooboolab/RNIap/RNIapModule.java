@@ -126,28 +126,39 @@ public class RNIapModule extends ReactContextBaseJavaModule implements Purchases
   @ReactMethod
   public void initConnection(final Promise promise) {
     billingClient = BillingClient.newBuilder(reactContext)
-        .enablePendingPurchases()
-        .setListener(this).build();
-    billingClient.startConnection(new BillingClientStateListener() {
-      @Override
-      public void onBillingSetupFinished(BillingResult billingResult) {
-        if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK) {
+            .enablePendingPurchases()
+            .setListener(this).build();
+    
+    if (billingClient.isReady()) {
+      billingClient.startConnection(new BillingClientStateListener() {
+        @Override
+        public void onBillingSetupFinished(BillingResult billingResult) {
+          Log.e(TAG, "onBillingSetupFinished");
+          if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK) {
+            try {
+              promise.resolve(true);
+            } catch (ObjectAlreadyConsumedException oce) {
+              Log.e(TAG, oce.getMessage());
+            }
+          }
+        }
+        @Override
+        public void onBillingServiceDisconnected() {
+          Log.e(TAG, "onBillingServiceDisconnected");
           try {
-            promise.resolve(true);
+            promise.reject("initConnection", "Billing service disconnected");
           } catch (ObjectAlreadyConsumedException oce) {
             Log.e(TAG, oce.getMessage());
           }
         }
+      });
+    } else {
+      try {
+        promise.reject("initConnection", "INAPP items are not supported");
+      } catch (ObjectAlreadyConsumedException oce) {
+        Log.e(TAG, oce.getMessage());
       }
-      @Override
-      public void onBillingServiceDisconnected() {
-        try {
-          promise.reject("initConnection", "Billing service disconnected");
-        } catch (ObjectAlreadyConsumedException oce) {
-          Log.e(TAG, oce.getMessage());
-        }
-      }
-    });
+    }
   }
 
   @ReactMethod
